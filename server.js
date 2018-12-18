@@ -23,7 +23,7 @@ const server = app.listen(port, () => console.log(`Listening on ${port}`));
 
 const wss = new SocketServer({ server });
 
-const steemdWsUrl = process.env.STEEMD_WS_URL || 'wss://rpc.buildteam.io';
+const steemdWsUrl = process.env.STEEMD_WS_URL || 'wss://appbasetest.timcliff.com';
 const client = new Client(steemdWsUrl);
 
 const cache = {};
@@ -352,7 +352,7 @@ const loadNextBlock = () => {
   redis
     .getAsync('last_block_num')
     .then(res => {
-      let nextBlockNum = res === null ? 20000000 : parseInt(res) + 1;
+      let nextBlockNum = res === null ? 28669000 : parseInt(res) + 1;
       utils
         .getGlobalProps()
         .then(globalProps => {
