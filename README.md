@@ -1,7 +1,8 @@
-# BUSY API
+# NOTIFICATIONS API
 
-The API server for [Busy](https://busy.org/) - Blockchain-based social network where anyone can earn rewards :rocket:.
+NOTIFICATIONS API server for [WAIVIO](http://waiviodev.com/) - Blockchain-based social network where anyone can earn rewards :rocket:.
 
+Based on [Busy](https://busy.org/).
 ## Development
 
 [Yarn](https://yarnpkg.com/) package manager is used for this project. To install yarn, use
