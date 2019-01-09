@@ -352,7 +352,7 @@ const loadNextBlock = () => {
   redis
     .getAsync('last_block_num')
     .then(res => {
-      let nextBlockNum = res === null ? 28669000 : parseInt(res) + 1;
+      let nextBlockNum = res === null ? process.env.START_FROM_BLOCK || 29245550 : parseInt(res) + 1;
       utils
         .getGlobalProps()
         .then(globalProps => {
