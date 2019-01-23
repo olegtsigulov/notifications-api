@@ -355,7 +355,7 @@ const loadBlock = blockNum => {
           forecasts.forEach(forecastData => {
             const { id, security, forecast, created_at, recommend, slPrice, tpPrice } = forecastData;
             redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
-            redisForecasts.push(['setex', `expire:${id}`, new Date(forecast) - new Date(created_at), '']);
+            redisForecasts.push(['setex', `expire:${id}`, (new Date(forecast) - Date.now()) / 1000, '']);
             if (slPrice || tpPrice) {
               const key = `${security}_${recommend.toLowerCase()}`;
               if (slPrice) {
