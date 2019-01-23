@@ -4,7 +4,7 @@ const SocketServer = require('ws').Server;
 const { Client } = require('busyjs');
 const sdk = require('sc2-sdk');
 const bodyParser = require('body-parser');
-const redis = require('./helpers/redis');
+const { redisNotifyClient, redisForecastClient } = require('./helpers/redis');
 const utils = require('./helpers/utils');
 const router = require('./routes');
 const notificationUtils = require('./helpers/expoNotifications');
@@ -53,7 +53,7 @@ wss.on('connection', ws => {
     }
     // const key = new Buffer(JSON.stringify([call.method, call.params])).toString('base64');
     if (call.method === 'get_notifications' && call.params && call.params[0]) {
-      redis
+      redisNotifyClient
         .lrangeAsync(`notifications:${call.params[0]}`, 0, -1)
         .then(res => {
           console.log('Send notifications', call.params[0], res.length);
@@ -131,7 +131,6 @@ const parseOperations = ops => {
             forecasts.push(forecast);
           }
         }
-
         notifications.concat(getNotifications(operation));
         break;
       case 'custom_json':
@@ -149,15 +148,16 @@ const getForecast = post => {
   let result = null;
   try {
     jsonMetadata = JSON.parse(post.json_metadata);
-    const forecast = jsonMetadata.wia;
-    if (forecast && !_.isEmpty(forecast)) {
+    const forecastData = jsonMetadata.wia;
+    if (forecastData && !_.isEmpty(forecastData)) {
       result = {
-        security: forecast.quoteSecurity,
-        forecast: forecast.expiredAt,
-        created_at: forecast.createdAt,
-        postPrice: forecast.postPrice,
-        recommend: forecast.recommend,
+        security: forecastData.quoteSecurity,
+        forecast: forecastData.expiredAt,
+        created_at: forecastData.createdAt,
+        id: `${post.author}/${post.permlink}`,
         author: post.author,
+        postPrice: forecastData.postPrice,
+        recommend: forecastData.recommend,
         permlink: post.permlink,
       };
     }
@@ -319,7 +319,7 @@ const loadBlock = blockNum => {
           .then(block => {
             if (block && block.previous && block.transactions.length === 0) {
               console.log('Block exist and is empty, load next', blockNum);
-              redis
+              redisNotifyClient
                 .setAsync('last_block_num', blockNum)
                 .then(() => {
                   loadNextBlock();
@@ -349,10 +349,33 @@ const loadBlock = blockNum => {
         const parsed = parseOperations(ops);
         const notifications = parsed.notifications;
         const forecasts = parsed.forecasts;
-        /** Create redis operations array */
+        if (forecasts.length) {
+          /** Create redis forecasts array */
+          const redisForecasts = [];
+          forecasts.forEach(forecastData => {
+            const { id, security, forecast, created_at, recommend, slPrice, tpPrice } = forecastData;
+            redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
+            redisForecasts.push(['setex', `expire:${id}`, new Date(forecast) - new Date(created_at), '']);
+            if (slPrice || tpPrice) {
+              const key = `${security}_${recommend.toLowerCase()}`;
+              if (slPrice) {
+                redisForecasts.push(['zadd', `${key}_sl`, slPrice, id])
+              }
+              if (tpPrice) {
+                redisForecasts.push(['zadd', `${key}_tp`, tpPrice, id])
+              }
+            }
+          });
+          redisForecastClient
+            .multi(redisForecasts)
+            .execAsync()
+            .then(() => console.log('forecasts stored', forecasts, 'Block:', blockNum))
+            .catch(err => console.error('Redis store forecasts multi failed', err));
+        }
+        /** Create redis notifications array */
         const redisOps = [];
         notifications.forEach(notification => {
-          const key = `notifications:${notification[0]}`
+          const key = `notifications:${notification[0]}`;
           redisOps.push([
             'lpush',
             key,
@@ -362,7 +385,7 @@ const loadBlock = blockNum => {
           redisOps.push(['ltrim', key, 0, LIMIT - 1]);
         });
         redisOps.push(['set', 'last_block_num', blockNum]);
-        redis
+        redisNotifyClient
           .multi(redisOps)
           .execAsync()
           .then(() => {
@@ -400,7 +423,7 @@ const loadBlock = blockNum => {
 };
 
 const loadNextBlock = () => {
-  redis
+  redisNotifyClient
     .getAsync('last_block_num')
     .then(res => {
       let nextBlockNum = res === null ? process.env.START_FROM_BLOCK || 29648490 : parseInt(res) + 1;

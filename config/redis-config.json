@@ -1,0 +1,8 @@
+{
+  "forecasts": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 4,
+    "prefix": "charts_cache:"
+  }
+}

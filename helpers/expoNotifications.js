@@ -1,6 +1,6 @@
 const Expo = require('expo-server-sdk');
 const _ = require('lodash');
-const redis = require('./redis');
+const { redisNotifyClient } = require('./redis');
 const notificationTypes = require('./constants').notificationTypes;
 
 const expo = new Expo();
@@ -18,7 +18,7 @@ const sendAllNotifications = notifications => {
 
   Object.keys(userNotifications).forEach(user => {
     const currentUserNotifications = userNotifications[user];
-    redis.smembersAsync(`tokens:${user}`).then(async tokens => {
+    redisNotifyClient.smembersAsync(`tokens:${user}`).then(async tokens => {
       if (tokens.length === 0) return;
 
       const messages = [];
