@@ -352,7 +352,7 @@ const loadNextBlock = () => {
   redis
     .getAsync('last_block_num')
     .then(res => {
-      let nextBlockNum = res === null ? process.env.START_FROM_BLOCK || 29879300 : parseInt(res) + 1;
+      let nextBlockNum = res === null ? process.env.START_FROM_BLOCK || 29879430 : parseInt(res) + 1;
       utils
         .getGlobalProps()
         .then(globalProps => {
@@ -363,14 +363,14 @@ const loadNextBlock = () => {
             loadBlock(nextBlockNum);
           } else {
             utils.sleep(2000).then(() => {
-              console.log(
-                // 'Waiting to be on the lastIrreversibleBlockNum',
-                'Waiting to be on the headBlockNumber',
-                // lastIrreversibleBlockNum,
-                headBlockNumber,
-                'now nextBlockNum',
-                nextBlockNum,
-              );
+              // console.log(
+              //   // 'Waiting to be on the lastIrreversibleBlockNum',
+              //   'Waiting to be on the headBlockNumber',
+              //   // lastIrreversibleBlockNum,
+              //   headBlockNumber,
+              //   'now nextBlockNum',
+              //   nextBlockNum,
+              // );
               loadNextBlock();
             });
           }
