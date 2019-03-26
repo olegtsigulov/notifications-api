@@ -4,7 +4,7 @@ const SocketServer = require('ws').Server;
 const { Client } = require('busyjs');
 const sdk = require('sc2-sdk');
 const bodyParser = require('body-parser');
-const redis = require('./helpers/redis');
+const { redisNotifyClient, redisForecastClient } = require('./helpers/redis');
 const utils = require('./helpers/utils');
 const router = require('./routes');
 const notificationUtils = require('./helpers/expoNotifications');
@@ -53,7 +53,7 @@ wss.on('connection', ws => {
     }
     // const key = new Buffer(JSON.stringify([call.method, call.params])).toString('base64');
     if (call.method === 'get_notifications' && call.params && call.params[0]) {
-      redis
+      redisNotifyClient
         .lrangeAsync(`notifications:${call.params[0]}`, 0, -1)
         .then(res => {
           console.log('Send notifications', call.params[0], res.length);
@@ -116,146 +116,195 @@ wss.on('connection', ws => {
 
 /** Stream the blockchain for notifications */
 
-const getNotifications = ops => {
-  const notifications = [];
-  ops.forEach(op => {
-    const type = op.op[0];
-    const params = op.op[1];
+const parseOperations = ops => {
+  let notifications = [];
+  const forecasts = [];
+  ops.forEach(operation => {
+    const type = operation.op[0];
+    const params = operation.op[1];
     switch (type) {
-      case 'comment': {
-        const isRootPost = !params.parent_author;
-
-        /** Find replies */
-        if (!isRootPost) {
-          const notification = {
-            type: 'reply',
-            parent_permlink: params.parent_permlink,
-            author: params.author,
-            permlink: params.permlink,
-            timestamp: Date.parse(op.timestamp) / 1000,
-            block: op.block,
-          };
-          notifications.push([params.parent_author, notification]);
-        }
-
-        /** Find mentions */
-        const pattern = /(@[a-z][-\.a-z\d]+[a-z\d])/gi;
-        const content = `${params.title} ${params.body}`;
-        const mentions = _
-          .without(
-            _
-              .uniq(
-                (content.match(pattern) || [])
-                  .join('@')
-                  .toLowerCase()
-                  .split('@'),
-              )
-              .filter(n => n),
-            params.author,
-          )
-          .slice(0, 9); // Handle maximum 10 mentions per post
-        if (mentions.length) {
-          mentions.forEach(mention => {
-            const notification = {
-              type: 'mention',
-              is_root_post: isRootPost,
-              author: params.author,
-              permlink: params.permlink,
-              timestamp: Date.parse(op.timestamp) / 1000,
-              block: op.block,
-            };
-            notifications.push([mention, notification]);
-          });
-        }
-        break;
-      }
-      case 'custom_json': {
-        let json = {};
-        try {
-          json = JSON.parse(params.json);
-        } catch (err) {
-          console.log('Wrong json format on custom_json', err);
-        }
-        switch (params.id) {
-          case 'follow': {
-            /** Find follow */
-            if (
-              json[0] === 'follow' &&
-              json[1].follower &&
-              json[1].following &&
-              _.has(json, '[1].what[0]') &&
-              json[1].what[0] === 'blog'
-            ) {
-              const notification = {
-                type: 'follow',
-                follower: json[1].follower,
-                timestamp: Date.parse(op.timestamp) / 1000,
-                block: op.block,
-              };
-              notifications.push([json[1].following, notification]);
-            }
-            /** Find reblog */
-            if (json[0] === 'reblog' && json[1].account && json[1].author && json[1].permlink) {
-              const notification = {
-                type: 'reblog',
-                account: json[1].account,
-                permlink: json[1].permlink,
-                timestamp: Date.parse(op.timestamp) / 1000,
-                block: op.block,
-              };
-              // console.log('Reblog', [json[1].author, JSON.stringify(notification)]);
-              notifications.push([json[1].author, notification]);
-            }
-            break;
+      case 'comment':
+        const isPost = !params.parent_author;
+        if (isPost) {
+          const forecast = getForecast(params);
+          if (forecast) {
+            forecasts.push(forecast);
           }
         }
+        notifications.concat(getNotifications(operation));
         break;
-      }
-      case 'account_witness_vote': {
-        /** Find witness vote */
-        const notification = {
-          type: 'witness_vote',
-          account: params.account,
-          approve: params.approve,
-          timestamp: Date.parse(op.timestamp) / 1000,
-          block: op.block,
-        };
-        // console.log('Witness vote', [params.witness, notification]);
-        notifications.push([params.witness, notification]);
+      case 'custom_json':
+      case 'account_witness_vote':
+      case 'vote':
+      case 'transfer':
+        notifications = notifications.concat(getNotifications(operation));
         break;
-      }
-      case 'vote': {
-        /** Find downvote */
-        if (params.weight < 0) {
-          const notification = {
-            type: 'vote',
-            voter: params.voter,
-            permlink: params.permlink,
-            weight: params.weight,
-            timestamp: Date.parse(op.timestamp) / 1000,
-            block: op.block,
-          };
-          // console.log('Downvote', JSON.stringify([params.author, notification]));
-          notifications.push([params.author, notification]);
-        }
-        break;
-      }
-      case 'transfer': {
-        /** Find transfer */
-        const notification = {
-          type: 'transfer',
-          from: params.from,
-          amount: params.amount,
-          memo: params.memo,
-          timestamp: Date.parse(op.timestamp) / 1000,
-          block: op.block,
-        };
-        // console.log('Transfer', JSON.stringify([params.to, notification]));
-        notifications.push([params.to, notification]);
-        break;
-      }
     }
   });
+  return { notifications, forecasts };
+};
+
+const getForecast = post => {
+  let result = null;
+  try {
+    jsonMetadata = JSON.parse(post.json_metadata);
+    const forecastData = jsonMetadata.wia;
+    if (forecastData && !_.isEmpty(forecastData)) {
+      result = {
+        security: forecastData.quoteSecurity,
+        forecast: forecastData.expiredAt,
+        created_at: forecastData.createdAt,
+        id: `${post.author}/${post.permlink}`,
+        author: post.author,
+        postPrice: forecastData.postPrice,
+        recommend: forecastData.recommend,
+        permlink: post.permlink,
+      };
+    }
+  } catch (err) {
+    console.log('Wrong json_metadata format', err);
+  }
+  return result;
+};
+
+const getNotifications = operation => {
+  const notifications = [];
+  const type = operation.op[0];
+  const params = operation.op[1];
+  switch (type) {
+    case 'comment': {
+      const isRootPost = !params.parent_author;
+
+      /** Find replies */
+      if (!isRootPost) {
+        const notification = {
+          type: 'reply',
+          parent_permlink: params.parent_permlink,
+          author: params.author,
+          permlink: params.permlink,
+          timestamp: Date.parse(operation.timestamp) / 1000,
+          block: operation.block,
+        };
+        notifications.push([params.parent_author, notification]);
+      }
+
+      /** Find mentions */
+      const pattern = /(@[a-z][-\.a-z\d]+[a-z\d])/gi;
+      const content = `${params.title} ${params.body}`;
+      const mentions = _
+        .without(
+          _
+            .uniq(
+              (content.match(pattern) || [])
+                .join('@')
+                .toLowerCase()
+                .split('@'),
+            )
+            .filter(n => n),
+          params.author,
+        )
+        .slice(0, 9); // Handle maximum 10 mentions per post
+      if (mentions.length) {
+        mentions.forEach(mention => {
+          const notification = {
+            type: 'mention',
+            is_root_post: isRootPost,
+            author: params.author,
+            permlink: params.permlink,
+            timestamp: Date.parse(operation.timestamp) / 1000,
+            block: operation.block,
+          };
+          notifications.push([mention, notification]);
+        });
+      }
+      break;
+    }
+    case 'custom_json': {
+      let json = {};
+      try {
+        json = JSON.parse(params.json);
+      } catch (err) {
+        console.log('Wrong json format on custom_json', err);
+      }
+      switch (params.id) {
+        case 'follow': {
+          /** Find follow */
+          if (
+            json[0] === 'follow' &&
+            json[1].follower &&
+            json[1].following &&
+            _.has(json, '[1].what[0]') &&
+            json[1].what[0] === 'blog'
+          ) {
+            const notification = {
+              type: 'follow',
+              follower: json[1].follower,
+              timestamp: Date.parse(operation.timestamp) / 1000,
+              block: operation.block,
+            };
+            notifications.push([json[1].following, notification]);
+          }
+          /** Find reblog */
+          if (json[0] === 'reblog' && json[1].account && json[1].author && json[1].permlink) {
+            const notification = {
+              type: 'reblog',
+              account: json[1].account,
+              permlink: json[1].permlink,
+              timestamp: Date.parse(operation.timestamp) / 1000,
+              block: operation.block,
+            };
+            // console.log('Reblog', [json[1].author, JSON.stringify(notification)]);
+            notifications.push([json[1].author, notification]);
+          }
+          break;
+        }
+      }
+      break;
+    }
+    case 'account_witness_vote': {
+      /** Find witness vote */
+      const notification = {
+        type: 'witness_vote',
+        account: params.account,
+        approve: params.approve,
+        timestamp: Date.parse(operation.timestamp) / 1000,
+        block: operation.block,
+      };
+      // console.log('Witness vote', [params.witness, notification]);
+      notifications.push([params.witness, notification]);
+      break;
+    }
+    case 'vote': {
+      /** Find downvote */
+      if (params.weight < 0) {
+        const notification = {
+          type: 'vote',
+          voter: params.voter,
+          permlink: params.permlink,
+          weight: params.weight,
+          timestamp: Date.parse(operation.timestamp) / 1000,
+          block: operation.block,
+        };
+        // console.log('Downvote', JSON.stringify([params.author, notification]));
+        notifications.push([params.author, notification]);
+      }
+      break;
+    }
+    case 'transfer': {
+      /** Find transfer */
+      const notification = {
+        type: 'transfer',
+        from: params.from,
+        amount: params.amount,
+        memo: params.memo,
+        timestamp: Date.parse(operation.timestamp) / 1000,
+        block: operation.block,
+      };
+      // console.log('Transfer', JSON.stringify([params.to, notification]));
+      notifications.push([params.to, notification]);
+      break;
+    }
+  }
   return notifications;
 };
 
@@ -270,7 +319,7 @@ const loadBlock = blockNum => {
           .then(block => {
             if (block && block.previous && block.transactions.length === 0) {
               console.log('Block exist and is empty, load next', blockNum);
-              redis
+              redisNotifyClient
                 .setAsync('last_block_num', blockNum)
                 .then(() => {
                   loadNextBlock();
@@ -297,11 +346,30 @@ const loadBlock = blockNum => {
             });
           });
       } else {
-        const notifications = getNotifications(ops);
-        /** Create redis operations array */
+        const parsed = parseOperations(ops);
+        const notifications = parsed.notifications;
+        const forecasts = parsed.forecasts;
+        if (forecasts.length) {
+          /** Create redis forecasts array */
+          const redisForecasts = [];
+          forecasts.forEach(forecastData => {
+            const expireIn = (new Date(forecastData.forecast) - Date.now()) / 1000;
+            if (expireIn > 0) {
+              const { id } = forecastData;
+              redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
+              redisForecasts.push(['setex', `expire:${id}`, expireIn.toFixed(), '']);
+            }
+          });
+          redisForecastClient
+            .multi(redisForecasts)
+            .execAsync()
+            .then(() => console.log('forecasts stored', redisForecasts, '\ninit forecasts', forecasts, '\nBlock:', blockNum))
+            .catch(err => console.error('Redis store forecasts multi failed', err));
+        }
+        /** Create redis notifications array */
         const redisOps = [];
         notifications.forEach(notification => {
-          const key = `notifications:${notification[0]}`
+          const key = `notifications:${notification[0]}`;
           redisOps.push([
             'lpush',
             key,
@@ -311,7 +379,7 @@ const loadBlock = blockNum => {
           redisOps.push(['ltrim', key, 0, LIMIT - 1]);
         });
         redisOps.push(['set', 'last_block_num', blockNum]);
-        redis
+        redisNotifyClient
           .multi(redisOps)
           .execAsync()
           .then(() => {
@@ -349,7 +417,7 @@ const loadBlock = blockNum => {
 };
 
 const loadNextBlock = () => {
-  redis
+  redisNotifyClient
     .getAsync('last_block_num')
     .then(res => {
       let nextBlockNum = res === null ? process.env.START_FROM_BLOCK || 29879430 : parseInt(res) + 1;
