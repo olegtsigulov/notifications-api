@@ -353,23 +353,17 @@ const loadBlock = blockNum => {
           /** Create redis forecasts array */
           const redisForecasts = [];
           forecasts.forEach(forecastData => {
-            const { id, security, forecast, created_at, recommend, slPrice, tpPrice } = forecastData;
-            redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
-            redisForecasts.push(['setex', `expire:${id}`, (new Date(forecast) - Date.now()) / 1000, '']);
-            if (slPrice || tpPrice) {
-              const key = `${security}_${recommend.toLowerCase()}`;
-              if (slPrice) {
-                redisForecasts.push(['zadd', `${key}_sl`, slPrice, id])
-              }
-              if (tpPrice) {
-                redisForecasts.push(['zadd', `${key}_tp`, tpPrice, id])
-              }
+            const expireIn = (new Date(forecastData.forecast) - Date.now()) / 1000;
+            if (expireIn > 0) {
+              const { id } = forecastData;
+              redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
+              redisForecasts.push(['setex', `expire:${id}`, expireIn.toFixed(), '']);
             }
           });
           redisForecastClient
             .multi(redisForecasts)
             .execAsync()
-            .then(() => console.log('forecasts stored', forecasts, 'Block:', blockNum))
+            .then(() => console.log('forecasts stored', redisForecasts, '\ninit forecasts', forecasts, '\nBlock:', blockNum))
             .catch(err => console.error('Redis store forecasts multi failed', err));
         }
         /** Create redis notifications array */
