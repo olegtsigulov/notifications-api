@@ -159,6 +159,8 @@ const getForecast = post => {
         postPrice: forecastData.postPrice,
         recommend: forecastData.recommend,
         permlink: post.permlink,
+        slPrice: forecastData.slPrice,
+        tpPrice: forecastData.tpPrice,
       };
     }
   } catch (err) {
@@ -189,7 +191,7 @@ const getNotifications = operation => {
       }
 
       /** Find mentions */
-      const pattern = /(@[a-z][-\.a-z\d]+[a-z\d])/gi;
+      const pattern = /(@[a-z][-.a-z\d]+[a-z\d])/gi;
       const content = `${params.title} ${params.body}`;
       const mentions = _
         .without(
@@ -353,11 +355,20 @@ const loadBlock = blockNum => {
           /** Create redis forecasts array */
           const redisForecasts = [];
           forecasts.forEach(forecastData => {
-            const expireIn = (new Date(forecastData.forecast) - Date.now()) / 1000;
+            const { id, security, forecast, recommend, slPrice, tpPrice } = forecastData;
+            const expireIn = (new Date(forecast) - Date.now()) / 1000;
             if (expireIn > 0) {
-              const { id } = forecastData;
               redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
               redisForecasts.push(['setex', `expire:${id}`, expireIn.toFixed(), '']);
+            }
+            if (slPrice || tpPrice) {
+              const key = `${security}_${recommend.toLowerCase()}`;
+              if (slPrice) {
+                redisForecasts.push(['zadd', `${key}_sl`, slPrice, id])
+              }
+              if (tpPrice) {
+                redisForecasts.push(['zadd', `${key}_tp`, tpPrice, id])
+              }
             }
           });
           redisForecastClient
