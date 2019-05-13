@@ -360,14 +360,14 @@ const loadBlock = blockNum => {
             if (expireIn > 0) {
               redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
               redisForecasts.push(['setex', `expire:${id}`, expireIn.toFixed(), '']);
-            }
-            if (slPrice || tpPrice) {
-              const key = `${security}_${recommend.toLowerCase()}`;
-              if (slPrice) {
-                redisForecasts.push(['zadd', `${key}_sl`, slPrice, id])
-              }
-              if (tpPrice) {
-                redisForecasts.push(['zadd', `${key}_tp`, tpPrice, id])
+              if (slPrice || tpPrice) {
+                const key = `${security}_${recommend.toLowerCase()}`;
+                if (slPrice) {
+                  redisForecasts.push(['zadd', `${key}_sl`, slPrice, id])
+                }
+                if (tpPrice) {
+                  redisForecasts.push(['zadd', `${key}_tp`, tpPrice, id])
+                }
               }
             }
           });
