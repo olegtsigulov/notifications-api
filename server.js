@@ -131,7 +131,7 @@ const parseOperations = ops => {
             forecasts.push(forecast);
           }
         }
-        notifications.concat(getNotifications(operation));
+        notifications = notifications.concat(getNotifications(operation));
         break;
       case 'custom_json':
       case 'account_witness_vote':
