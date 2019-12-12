@@ -4,7 +4,7 @@ const SocketServer = require('ws').Server;
 const { Client } = require('busyjs');
 const sdk = require('sc2-sdk');
 const bodyParser = require('body-parser');
-const { redisNotifyClient, redisForecastClient } = require('./helpers/redis');
+const { redisNotifyClient } = require('./helpers/redis');
 const utils = require('./helpers/utils');
 const router = require('./routes');
 const notificationUtils = require('./helpers/expoNotifications');
@@ -118,19 +118,11 @@ wss.on('connection', ws => {
 
 const parseOperations = ops => {
   let notifications = [];
-  const forecasts = [];
   ops.forEach(operation => {
     const type = operation.op[0];
     const params = operation.op[1];
     switch (type) {
       case 'comment':
-        const isPost = !params.parent_author;
-        if (isPost) {
-          const forecast = getForecast(params);
-          if (forecast) {
-            forecasts.push(forecast);
-          }
-        }
         notifications = notifications.concat(getNotifications(operation));
         break;
       case 'custom_json':
@@ -141,32 +133,7 @@ const parseOperations = ops => {
         break;
     }
   });
-  return { notifications, forecasts };
-};
-
-const getForecast = post => {
-  let result = null;
-  try {
-    jsonMetadata = JSON.parse(post.json_metadata);
-    const forecastData = jsonMetadata.wia;
-    if (forecastData && !_.isEmpty(forecastData)) {
-      result = {
-        security: forecastData.quoteSecurity,
-        forecast: forecastData.expiredAt,
-        created_at: forecastData.createdAt,
-        id: `${post.author}/${post.permlink}`,
-        author: post.author,
-        postPrice: forecastData.postPrice,
-        recommend: forecastData.recommend,
-        permlink: post.permlink,
-        slPrice: forecastData.slPrice,
-        tpPrice: forecastData.tpPrice,
-      };
-    }
-  } catch (err) {
-    console.log('Wrong json_metadata format', err);
-  }
-  return result;
+  return { notifications};
 };
 
 const getNotifications = operation => {
@@ -350,33 +317,6 @@ const loadBlock = blockNum => {
       } else {
         const parsed = parseOperations(ops);
         const notifications = parsed.notifications;
-        const forecasts = parsed.forecasts;
-        if (forecasts.length) {
-          /** Create redis forecasts array */
-          const redisForecasts = [];
-          forecasts.forEach(forecastData => {
-            const { id, security, forecast, recommend, slPrice, tpPrice } = forecastData;
-            const expireIn = (new Date(forecast) - Date.now()) / 1000;
-            if (expireIn > 0) {
-              redisForecasts.push(['set', id, JSON.stringify(forecastData)]);
-              redisForecasts.push(['setex', `expire:${id}`, expireIn.toFixed(), '']);
-              if (slPrice || tpPrice) {
-                const key = `${security}_${recommend.toLowerCase()}`;
-                if (slPrice) {
-                  redisForecasts.push(['zadd', `${key}_sl`, slPrice, id])
-                }
-                if (tpPrice) {
-                  redisForecasts.push(['zadd', `${key}_tp`, tpPrice, id])
-                }
-              }
-            }
-          });
-          redisForecastClient
-            .multi(redisForecasts)
-            .execAsync()
-            .then(() => console.log('forecasts stored', redisForecasts, '\ninit forecasts', forecasts, '\nBlock:', blockNum))
-            .catch(err => console.error('Redis store forecasts multi failed', err));
-        }
         /** Create redis notifications array */
         const redisOps = [];
         notifications.forEach(notification => {
