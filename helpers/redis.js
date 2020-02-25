@@ -6,6 +6,5 @@ bluebird.promisifyAll(redis.Multi.prototype);
 const redisNotifyClient = redis.createClient(process.env.REDISCLOUD_URL);
 
 module.exports = {
-  redisNotifyClient
+  redisNotifyClient,
 };
-

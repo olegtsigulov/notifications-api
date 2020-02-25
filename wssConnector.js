@@ -1,20 +1,10 @@
 const sdk = require('sc2-sdk');
 const { Client } = require('busyjs');
 const SocketServer = require('ws').Server;
-const app = require('./app');
-// const express = require('express');
-// const bodyParser = require('body-parser');
-// const router = require('./routes');
+const { server } = require('./app');
 const { redisNotifyClient } = require('./helpers/redis');
 
-
-// const port = process.env.PORT || 4000;
-// const app = express();
-// app.use(bodyParser.json());
-// const server = app.listen(port, () => console.log(`Listening on ${port}`));
-
 const sc2 = sdk.Initialize({ app: 'busy.app' });
-const server = app.listen();
 const wss = new SocketServer({ server });
 
 const steemdWsUrl = process.env.STEEMD_WS_URL || 'wss://appbasetest.timcliff.com';
@@ -109,7 +99,5 @@ class WebSocket {
 }
 
 const wssConnection = new WebSocket();
-// require('./blockchainStream');
-console.log()
-// app.use('/', router);
+
 module.exports = { wssConnection };
