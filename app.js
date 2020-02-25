@@ -10,6 +10,7 @@ module.exports = app;
 
 
 const router = require('./routes');
+
 app.use('/', router);
 
 require('./blockchainStream');

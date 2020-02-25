@@ -1,8 +1,8 @@
-const wss = require('../wssConnector');
+const { wssConnection } = require('../wssConnector');
 
 const clientSend = (notifications) => {
   notifications.forEach((notification) => {
-    wss.clients.forEach((client) => {
+    wssConnection.wss.clients.forEach((client) => {
       if (client.name && client.name === notification[0]) {
         console.log('Send push notification', notification[0]);
         client.send(
@@ -18,7 +18,7 @@ const clientSend = (notifications) => {
 
 const heartbeat = () => {
   setInterval(() => {
-    wss.clients.forEach((client) => {
+    wssConnection.wss.clients.forEach((client) => {
       client.send(JSON.stringify({ type: 'heartbeat' }));
     });
   }, 20 * 1000);
