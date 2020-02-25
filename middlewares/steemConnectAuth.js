@@ -18,7 +18,7 @@ async function authMiddleware(req, res, next) {
 
   try {
     const api = sc2.Initialize({
-      app: 'busy.app',
+      app: 'waivio',
     });
 
     api.setAccessToken(token);
