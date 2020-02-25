@@ -8,3 +8,4 @@ const redisNotifyClient = redis.createClient(process.env.REDISCLOUD_URL);
 module.exports = {
   redisNotifyClient
 };
+
