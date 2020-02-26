@@ -11,6 +11,10 @@ function createTimeout(timeout, promise) {
 }
 
 async function authMiddleware(req, res, next) {
+  const reqKey = req.get('API_KEY');
+  if (reqKey && reqKey === process.env.API_KEY) {
+    return next();
+  }
   const token = req.get('Authorization');
   if (!token) {
     return res.sendStatus(401);

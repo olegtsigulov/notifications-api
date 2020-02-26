@@ -2,6 +2,8 @@ const express = require('express');
 const _ = require('lodash');
 const { redisNotifyClient } = require('../helpers/redis');
 const validTokenMiddleware = require('../middlewares/expoToken');
+const validators = require('../validators');
+const guestNotifications = require('../helpers/guestNotificationsHelper');
 
 const router = express.Router();
 
@@ -14,6 +16,14 @@ router.get('/', async (req, res) => {
     .catch(() => res.sendStatus(500));
 });
 
+router.post('/set', async (req, res) => {
+  const { params, validationError } = validators.validate(
+    req.body, validators.guests.operationsSchema,
+  );
+  if (validationError) return res.status(422).json(validationError);
+  await guestNotifications.setNotificationInRedis(params);
+  res.status(200).send({ result: 'success' });
+});
 
 router.post('/register', validTokenMiddleware, async (req, res) => {
   redisNotifyClient
