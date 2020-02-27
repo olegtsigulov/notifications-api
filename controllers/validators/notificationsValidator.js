@@ -39,14 +39,14 @@ exports.operationsSchema = Joi.object().keys({
         to: Joi.string().required(),
         from: Joi.string().required(),
         amount: Joi.string().required(),
-        memo: Joi.string().required(),
+        memo: Joi.string().allow('').required(),
       }).required(),
     })
     .when('id', {
       is: 'account_witness_vote',
       then: Joi.object().keys({
         account: Joi.string().required(),
-        approve: Joi.string().required(),
+        approve: Joi.boolean().required(),
         witness: Joi.string().required(),
       }).required(),
     }),

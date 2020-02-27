@@ -67,7 +67,7 @@ const getNotificationsFromComment = (operation, params) => {
         is_root_post: isRootPost,
         author: params.author,
         permlink: params.permlink,
-        timestamp: Date.parse(operation.timestamp) / 1000,
+        timestamp: Math.round(new Date().valueOf() / 1000),
         block: operation.block,
       };
       notifications.push([mention, notification]);
@@ -141,7 +141,6 @@ const setNotifications = async ({ params }) => {
   const redisOps = prepareDataForRedis(notifications);
   await redisNotifyClient.multi(redisOps).execAsync();
   clientSend(notifications);
-  console.log(`Notification from block ${params.block} sent`);
 };
 
 module.exports = { getNotifications, prepareDataForRedis, setNotifications };

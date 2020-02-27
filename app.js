@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const morgan = require('morgan');
 
 const port = process.env.PORT || 4000;
 const app = express();
@@ -12,6 +13,7 @@ const authMiddleware = require('./middlewares/authMiddleware');
 
 const swaggerDocument = require('./swagger/swagger.json');
 
+app.use(morgan('dev'));
 if (process.env.NODE_ENV === 'development') swaggerDocument.host = 'localhost:4000';
 app.use('/notifications/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
