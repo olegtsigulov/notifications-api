@@ -2,7 +2,8 @@ const sdk = require('sc2-sdk');
 const { Client } = require('busyjs');
 const SocketServer = require('ws').Server;
 const { server } = require('./app');
-const { redisNotifyClient } = require('./helpers/redis');
+const { redisNotifyClient } = require('./redis/redis');
+const { validateAuthToken } = require('./helpers/waivioAuthHelper');
 
 const sc2 = sdk.Initialize({ app: 'busy.app' });
 const wss = new SocketServer({ server });
@@ -52,6 +53,26 @@ class WebSocket {
           sc2
             .me()
             .then((result) => {
+              console.log('Login success', result.name);
+              ws.name = result.name;
+              ws.verified = true;
+              ws.account = result.account;
+              ws.user_metadata = result.user_metadata;
+              ws.send(JSON.stringify({ id: call.id, result: { login: true, username: result.name } }));
+            })
+            .catch((err) => {
+              console.error('Login failed', err);
+              ws.send(
+                JSON.stringify({
+                  id: call.id,
+                  result: {},
+                  error: 'Something is wrong',
+                }),
+              );
+            });
+        } else if (call.method === 'guest_login' && call.params && call.params[0]) {
+          validateAuthToken(call.params[0])
+            .then(({ error, result }) => {
               console.log('Login success', result.name);
               ws.name = result.name;
               ws.verified = true;

@@ -1,5 +1,6 @@
 const Bluebird = require('bluebird');
 const sc2 = require('sc2-sdk');
+const { validateAuthToken } = require('../helpers/waivioAuthHelper');
 
 function createTimeout(timeout, promise) {
   return new Promise((resolve, reject) => {
@@ -16,25 +17,31 @@ async function authMiddleware(req, res, next) {
     return next();
   }
   const token = req.get('Authorization');
+  const waivioAuth = req.get('waivio-auth');
   if (!token) {
     return res.sendStatus(401);
   }
 
   try {
-    const api = sc2.Initialize({
-      app: 'waivio',
-    });
+    let user;
+    if (waivioAuth) {
+      const { result } = await validateAuthToken(token);
+      if (!result) return res.sendStatus(401);
+      user = result.name;
+    } else {
+      const api = sc2.Initialize({
+        app: 'waivio',
+      });
 
-    api.setAccessToken(token);
+      api.setAccessToken(token);
 
-    const me = Bluebird.promisify(api.me, { context: api });
+      const me = Bluebird.promisify(api.me, { context: api });
 
-    const user = await createTimeout(10000, me());
-
-    if (!user) {
-      return res.sendStatus(401);
+      user = await createTimeout(10000, me());
+      if (!user) {
+        return res.sendStatus(401);
+      }
     }
-
     req.user = user;
 
     next();
