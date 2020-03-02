@@ -1,5 +1,5 @@
 module.exports = {
-  guests: require('./guestOperationsValidator'),
+  notifications: require('./notificationsValidator'),
   validate: (data, schema) => {
     const result = schema.validate(data, { abortEarly: false });
 

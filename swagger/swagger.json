@@ -1,0 +1,188 @@
+{
+  "swagger": "2.0",
+  "host": "waiviodev.com",
+  "schemes": [
+    "https", "http"
+  ],
+  "info": {
+    "version": "0.0.1",
+    "title": "Waivio notifications api",
+    "description": "Documentation for notifications"
+  },
+  "basePath": "/notifications",
+  "paths": {
+    "/set": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "comment",
+            "description": "Optional parameters for save notifications for comment, custom json, account witness vote, transfer",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "enum": ["comment", "custom_json", "transfer", "account_witness_vote"]
+                },
+                "block": {
+                  "type": "string"
+                },
+                "data": {
+                  "description": "data for comment",
+                  "type": "object",
+                  "properties": {
+                    "author": {
+                      "type": "string"
+                    },
+                    "permlink": {
+                      "type": "string"
+                    },
+                    "parent_author": {
+                      "type": "string"
+                    },
+                    "parent_permlink": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "json_metadata": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "data1": {
+                  "description": "data for custom_json",
+                  "type": "array",
+                  "example": [
+                    "follow",
+                    {
+                      "id": "follow",
+                      "json": "Stringify JSON data"
+                    }
+                  ]
+                },
+                "data2": {
+                  "description": "data for transfer",
+                  "type": "object",
+                  "properties": {
+                    "to": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "string"
+                    },
+                    "memo": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "data3": {
+                  "description": "data for account witness vote",
+                  "type": "object",
+                  "properties": {
+                    "account": {
+                      "type": "string"
+                    },
+                    "approve": {
+                      "type": "string"
+                    },
+                    "witness": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "schema": {
+              "example": {
+                "result": "OK"
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "schema": {
+              "example": {
+                "message": "Validation error"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "access-token (steem or guest)",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "waivio-auth",
+            "in": "header",
+            "description": "waivioAuth",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "notifications for user",
+            "schema": {
+              "example": {
+                "result":[
+                  {
+                    "type":"follow",
+                    "follower":"bla",
+                    "timestamp":1582734740,
+                    "block":53453535
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "example": {
+                "message": "Unauthorized"
+
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+  }
+}

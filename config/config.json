@@ -1,0 +1,14 @@
+{
+  "production": {
+    "waivioUrl": "https://www.waivio.com"
+  },
+  "staging": {
+    "waivioUrl": "https://waiviodev.com"
+  },
+  "development": {
+    "waivioUrl": "https://waiviodev.com"
+  },
+  "test": {
+    "waivioUrl": "https://waiviodev.com"
+  }
+}

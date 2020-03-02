@@ -1,14 +1,11 @@
 const sdk = require('sc2-sdk');
-const { Client } = require('busyjs');
 const SocketServer = require('ws').Server;
 const { server } = require('./app');
-const { redisNotifyClient } = require('./helpers/redis');
+const { redisNotifyClient } = require('./redis/redis');
+const { validateAuthToken } = require('./helpers/waivioAuthHelper');
 
-const sc2 = sdk.Initialize({ app: 'busy.app' });
+const sc2 = sdk.Initialize({ app: 'waivio.app' });
 const wss = new SocketServer({ server });
-
-const steemdWsUrl = process.env.STEEMD_WS_URL || 'wss://appbasetest.timcliff.com';
-const client = new Client(steemdWsUrl);
 
 const clearGC = () => {
   try {
@@ -57,7 +54,31 @@ class WebSocket {
               ws.verified = true;
               ws.account = result.account;
               ws.user_metadata = result.user_metadata;
-              ws.send(JSON.stringify({ id: call.id, result: { login: true, username: result.name } }));
+              ws.send(JSON.stringify(
+                { id: call.id, result: { login: true, username: result.name } },
+              ));
+            })
+            .catch((err) => {
+              console.error('Login failed', err);
+              ws.send(
+                JSON.stringify({
+                  id: call.id,
+                  result: {},
+                  error: 'Something is wrong',
+                }),
+              );
+            });
+        } else if (call.method === 'guest_login' && call.params && call.params[0]) {
+          validateAuthToken(call.params[0])
+            .then(({ error, result }) => {
+              console.log('Login success', result.name);
+              ws.name = result.name;
+              ws.verified = true;
+              ws.account = result.account;
+              ws.user_metadata = result.user_metadata;
+              ws.send(JSON.stringify(
+                { id: call.id, result: { login: true, username: result.name } },
+              ));
             })
             .catch((err) => {
               console.error('Login failed', err);
@@ -75,13 +96,6 @@ class WebSocket {
           ws.send(
             JSON.stringify({ id: call.id, result: { subscribe: true, username: call.params[0] } }),
           );
-        } else if (call.method && call.params) {
-          client.call(call.method, call.params, (err, result) => {
-            ws.send(JSON.stringify({ id: call.id, result }));
-            // if (useCache) {
-            //  cache[key] = result;
-            // }
-          });
         } else {
           ws.send(
             JSON.stringify({
