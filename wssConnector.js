@@ -5,7 +5,7 @@ const { redisNotifyClient } = require('./redis/redis');
 const { validateAuthToken } = require('./helpers/waivioAuthHelper');
 
 const sc2 = sdk.Initialize({ app: 'waivio.app' });
-const wss = new SocketServer({ server });
+const wss = new SocketServer({ server, path: '/notifications-api' });
 
 const clearGC = () => {
   try {
