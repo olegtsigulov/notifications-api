@@ -42,7 +42,7 @@ async function authMiddleware(req, res, next) {
         return res.sendStatus(401);
       }
     }
-    req.user = user;
+    req.user = user.name;
 
     next();
   } catch (err) {
