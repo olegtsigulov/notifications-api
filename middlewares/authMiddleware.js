@@ -27,7 +27,7 @@ async function authMiddleware(req, res, next) {
     if (waivioAuth) {
       const { result } = await validateAuthToken(token);
       if (!result) return res.sendStatus(401);
-      user = result.name;
+      user = result;
     } else {
       const api = sc2.Initialize({
         app: 'waivio',
