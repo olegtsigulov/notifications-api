@@ -45,7 +45,7 @@ const getNotificationsFromComment = (operation, params) => {
   }
 
   /** Find mentions */
-  const pattern = /(@[a-z][-.a-z\d]+[a-z\d])/gi;
+  const pattern = /(@[a-z][\_\-.a-z\d]+[a-z\d])/gi;
   const content = `${params.title} ${params.body}`;
   const mentions = _
     .without(
