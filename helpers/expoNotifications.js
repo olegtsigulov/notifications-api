@@ -1,6 +1,6 @@
 const Expo = require('expo-server-sdk');
 const _ = require('lodash');
-const { redisNotifyClient } = require('./redis');
+const { redisNotifyClient } = require('../redis/redis');
 const notificationTypes = require('./constants').notificationTypes;
 
 const expo = new Expo();

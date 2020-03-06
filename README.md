@@ -1,14 +1,12 @@
 # NOTIFICATIONS API
 
-NOTIFICATIONS API server for [WAIVIO](http://waiviodev.com/) - Blockchain-based social network where anyone can earn rewards :rocket:.
+NOTIFICATIONS API server for [WAIVIO](http://waivio.com/) - Blockchain-based social network where anyone can earn rewards :rocket:.
 
-Based on [Busy](https://busy.org/).
+Based on  [WAIVIO](http://waivio.com/) 
 ## Development
 
-[Yarn](https://yarnpkg.com/) package manager is used for this project. To install yarn, use
-
 ```shell
-$ npm i -g yarn
+$ npm i -g 
 ```
 
 You may require `sudo`.
@@ -18,8 +16,8 @@ You may require `sudo`.
 But before that, you would need to have a [redis](https://redis.io/) server up and running.
 
 ```shell
-$ yarn  # Install dependencies
-$ yarn start  # Start server
+$ npm  # Install dependencies
+$ npm start  # Start server
 ```
 
 You should be able to access the server at http://localhost:4000.
