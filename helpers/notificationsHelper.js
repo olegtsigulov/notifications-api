@@ -3,7 +3,7 @@ const { LIMIT, NOTIFICATION_EXPIRY } = require('./constants');
 const { clientSend } = require('./wssHelper');
 const { redisNotifyClient } = require('../redis/redis');
 
-const getNotificationsFromCustomJSON = (operation, params) => {
+const fromCustomJSON = (operation, params) => {
   const notifications = [];
   if (params.id === 'follow') {
     const notification = {
@@ -28,7 +28,7 @@ const getNotificationsFromCustomJSON = (operation, params) => {
 };
 
 
-const getNotificationsFromComment = (operation, params) => {
+const fromComment = (operation, params) => {
   const notifications = [];
   const isRootPost = !params.parent_author;
   /** Find replies */
@@ -76,18 +76,45 @@ const getNotificationsFromComment = (operation, params) => {
   return notifications;
 };
 
+const fromRestaurantStatus = (operation, params) => {
+  const notifications = [];
+  let status;
+  try {
+    status = JSON.parse(params.body);
+  } catch (e) {
+    console.error(e.message());
+  }
+  _.forEach(params.experts, (expert) => {
+    const notification = {
+      type: 'status-change',
+      author: _.get(params, 'voter', params.creator),
+      account: expert,
+      object_name: params.object_name,
+      author_permlink: params.author_permlink,
+      status: _.get(params, 'voter') ? '' : status.title,
+      timestamp: Math.round(new Date().valueOf() / 1000),
+      block: operation.block,
+    };
+    notifications.push([expert, notification]);
+  });
+  return notifications;
+};
+
 
 const getNotifications = (operation) => {
   let notifications = [];
   const type = operation.id;
   const params = operation.data;
   switch (type) {
+    case 'restaurantStatus':
+      notifications = _.concat(notifications, fromRestaurantStatus(operation, params));
+      break;
     case 'comment': {
-      notifications = _.concat(notifications, getNotificationsFromComment(operation, params));
+      notifications = _.concat(notifications, fromComment(operation, params));
       break;
     }
     case 'custom_json': {
-      notifications = _.concat(notifications, getNotificationsFromCustomJSON(operation, params));
+      notifications = _.concat(notifications, fromCustomJSON(operation, params));
       break;
     }
     case 'account_witness_vote': {
