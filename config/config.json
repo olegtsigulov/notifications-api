@@ -1,14 +1,18 @@
 {
   "production": {
-    "waivioUrl": "https://www.waivio.com"
+    "waivioUrl": "https://www.waivio.com",
+    "currency": "HIVE"
   },
   "staging": {
-    "waivioUrl": "https://waiviodev.com"
+    "waivioUrl": "https://waiviodev.com",
+    "currency": "HIVE"
   },
   "development": {
-    "waivioUrl": "https://waiviodev.com"
+    "waivioUrl": "https://waiviodev.com",
+    "currency": "HIVE"
   },
   "test": {
-    "waivioUrl": "https://waiviodev.com"
+    "waivioUrl": "https://waiviodev.com",
+    "currency": "HIVE"
   }
 }

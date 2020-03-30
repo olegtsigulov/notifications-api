@@ -2,6 +2,7 @@ const _ = require('lodash');
 const { LIMIT, NOTIFICATION_EXPIRY } = require('./constants');
 const { clientSend } = require('./wssHelper');
 const { redisNotifyClient } = require('../redis/redis');
+const { getAmountFromVests } = require('./dsteemHelper');
 
 const fromCustomJSON = (operation, params) => {
   const notifications = [];
@@ -100,8 +101,19 @@ const fromRestaurantStatus = (operation, params) => {
   return notifications;
 };
 
+const withdraw = async (operation, params) => {
+  const amount = await getAmountFromVests(params.vesting_shares);
+  const notification = {
+    type: 'power_down',
+    account: params.account,
+    amount,
+    timestamp: Math.round(new Date().valueOf() / 1000),
+    block: operation.block,
+  };
+  return [params.account, notification];
+};
 
-const getNotifications = (operation) => {
+const getNotifications = async (operation) => {
   let notifications = [];
   const type = operation.id;
   const params = operation.data;
@@ -142,6 +154,8 @@ const getNotifications = (operation) => {
       notifications.push([params.to, notification]);
       break;
     }
+    case 'withdraw_vesting':
+      notifications.push(await withdraw(operation, params));
   }
   return notifications;
 };
@@ -164,7 +178,7 @@ const prepareDataForRedis = (notifications) => {
 
 
 const setNotifications = async ({ params }) => {
-  const notifications = getNotifications(params);
+  const notifications = await getNotifications(params);
   const redisOps = prepareDataForRedis(notifications);
   await redisNotifyClient.multi(redisOps).execAsync();
   clientSend(notifications);

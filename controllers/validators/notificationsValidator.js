@@ -1,7 +1,7 @@
 const Joi = require('@hapi/joi');
 
 exports.operationsSchema = Joi.object().keys({
-  id: Joi.string().valid('comment', 'custom_json', 'transfer', 'account_witness_vote', 'restaurantStatus').required(),
+  id: Joi.string().valid('comment', 'custom_json', 'transfer', 'account_witness_vote', 'restaurantStatus', 'withdraw_vesting').required(),
   block: Joi.number().required(),
   data: Joi
     .when('id', {
@@ -40,6 +40,13 @@ exports.operationsSchema = Joi.object().keys({
         from: Joi.string().required(),
         amount: Joi.string().required(),
         memo: Joi.string().allow('').required(),
+      }).required(),
+    })
+    .when('id', {
+      is: 'withdraw_vesting',
+      then: Joi.object().keys({
+        account: Joi.string().required(),
+        vesting_shares: Joi.string().required(),
       }).required(),
     })
     .when('id', {
